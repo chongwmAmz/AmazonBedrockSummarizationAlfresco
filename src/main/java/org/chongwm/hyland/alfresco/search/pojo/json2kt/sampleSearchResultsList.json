@@ -1,0 +1,407 @@
+{
+	"list": {
+		"pagination": {
+			"count": 10,
+			"hasMoreItems": true,
+			"totalItems": 293,
+			"skipCount": 150,
+			"maxItems": 10
+		},
+		"context": {},
+		"entries": [
+			{
+				"entry": {
+					"isFile": true,
+					"createdByUser": {
+						"id": "admin",
+						"displayName": "Administrator"
+					},
+					"modifiedAt": "2023-11-15T17:05:35.544+0000",
+					"nodeType": "cm:content",
+					"content": {
+						"mimeType": "text/plain",
+						"mimeTypeName": "Plain Text",
+						"sizeInBytes": 1014,
+						"encoding": "ISO-8859-1"
+					},
+					"parentId": "0064a037-6b2a-4f18-a692-7a70c7ed2d5a",
+					"createdAt": "2023-11-15T17:05:35.251+0000",
+					"isFolder": false,
+					"search": {
+						"score": 2.877724
+					},
+					"modifiedByUser": {
+						"id": "admin",
+						"displayName": "Administrator"
+					},
+					"name": "Design calculations.txt",
+					"location": "nodes",
+					"id": "7c3cf85f-f761-4994-b06b-700d0b33b417",
+					"properties": {
+						"crestBedrock:generateSummary": false,
+						"crestBedrock:summaryTime": "1970-01-01T00:00:00.000+0000",
+						"crestBedrock:prompt": "Summarize this:",
+						"cm:versionType": "MAJOR",
+						"cm:versionLabel": "1.0",
+						"crestBedrock:fm": "amazon.titan-text-lite-v1",
+						"crestBedrock:responseLength": 250
+					}
+				}
+			},
+			{
+				"entry": {
+					"isFile": true,
+					"createdByUser": {
+						"id": "admin",
+						"displayName": "Administrator"
+					},
+					"modifiedAt": "2023-11-15T17:06:28.313+0000",
+					"nodeType": "cm:content",
+					"content": {
+						"mimeType": "text/plain",
+						"mimeTypeName": "Plain Text",
+						"sizeInBytes": 2550,
+						"encoding": "ISO-8859-1"
+					},
+					"parentId": "f432f929-d72d-4890-ad18-644bed827180",
+					"createdAt": "2023-11-15T17:06:28.043+0000",
+					"isFolder": false,
+					"search": {
+						"score": 2.877724
+					},
+					"modifiedByUser": {
+						"id": "admin",
+						"displayName": "Administrator"
+					},
+					"name": "Design specifications.txt",
+					"location": "nodes",
+					"id": "c361581f-80f6-4671-9737-0b4264d7ec54",
+					"properties": {
+						"crestBedrock:generateSummary": false,
+						"crestBedrock:summaryTime": "1970-01-01T00:00:00.000+0000",
+						"crestBedrock:prompt": "Summarize this:",
+						"cm:versionType": "MAJOR",
+						"cm:versionLabel": "1.0",
+						"crestBedrock:fm": "amazon.titan-text-lite-v1",
+						"crestBedrock:responseLength": 250
+					}
+				}
+			},
+			{
+				"entry": {
+					"isFile": true,
+					"createdByUser": {
+						"id": "admin",
+						"displayName": "Administrator"
+					},
+					"modifiedAt": "2023-11-15T17:06:03.830+0000",
+					"nodeType": "cm:content",
+					"content": {
+						"mimeType": "text/plain",
+						"mimeTypeName": "Plain Text",
+						"sizeInBytes": 2435,
+						"encoding": "ISO-8859-1"
+					},
+					"parentId": "db79a30f-2bef-4542-9f34-a3b6cfe69435",
+					"createdAt": "2023-11-15T17:06:03.479+0000",
+					"isFolder": false,
+					"search": {
+						"score": 2.877724
+					},
+					"modifiedByUser": {
+						"id": "admin",
+						"displayName": "Administrator"
+					},
+					"name": "Compliance and certification documents.txt",
+					"location": "nodes",
+					"id": "cac28d68-3699-4590-90ec-aa7f633663ea",
+					"properties": {
+						"crestBedrock:generateSummary": false,
+						"crestBedrock:summaryTime": "1970-01-01T00:00:00.000+0000",
+						"crestBedrock:prompt": "Summarize this:",
+						"cm:versionType": "MAJOR",
+						"cm:versionLabel": "1.0",
+						"crestBedrock:fm": "amazon.titan-text-lite-v1",
+						"crestBedrock:responseLength": 250
+					}
+				}
+			},
+			{
+				"entry": {
+					"isFile": true,
+					"createdByUser": {
+						"id": "admin",
+						"displayName": "Administrator"
+					},
+					"modifiedAt": "2023-11-15T17:06:16.867+0000",
+					"nodeType": "cm:content",
+					"content": {
+						"mimeType": "text/plain",
+						"mimeTypeName": "Plain Text",
+						"sizeInBytes": 1627,
+						"encoding": "UTF-8"
+					},
+					"parentId": "a8e0f91a-50c7-4ce8-aa6e-b593f5d0c280",
+					"createdAt": "2023-11-15T17:06:16.357+0000",
+					"isFolder": false,
+					"search": {
+						"score": 2.877724
+					},
+					"modifiedByUser": {
+						"id": "admin",
+						"displayName": "Administrator"
+					},
+					"name": "Design specifications.txt",
+					"location": "nodes",
+					"id": "1c078539-7251-4fc0-b1b7-0e6a5d3cc0d8",
+					"properties": {
+						"crestBedrock:generateSummary": false,
+						"crestBedrock:summaryTime": "1970-01-01T00:00:00.000+0000",
+						"crestBedrock:prompt": "Summarize this:",
+						"cm:versionType": "MAJOR",
+						"cm:versionLabel": "1.0",
+						"crestBedrock:fm": "amazon.titan-text-lite-v1",
+						"crestBedrock:responseLength": 250
+					}
+				}
+			},
+			{
+				"entry": {
+					"isFile": true,
+					"createdByUser": {
+						"id": "admin",
+						"displayName": "Administrator"
+					},
+					"modifiedAt": "2023-11-15T17:06:27.833+0000",
+					"nodeType": "cm:content",
+					"content": {
+						"mimeType": "text/plain",
+						"mimeTypeName": "Plain Text",
+						"sizeInBytes": 1717,
+						"encoding": "ISO-8859-1"
+					},
+					"parentId": "f432f929-d72d-4890-ad18-644bed827180",
+					"createdAt": "2023-11-15T17:06:27.543+0000",
+					"isFolder": false,
+					"search": {
+						"score": 2.877724
+					},
+					"modifiedByUser": {
+						"id": "admin",
+						"displayName": "Administrator"
+					},
+					"name": "Design calculations.txt",
+					"location": "nodes",
+					"id": "4c66f908-4289-4fe4-8d7d-4425c60bc61e",
+					"properties": {
+						"crestBedrock:generateSummary": false,
+						"crestBedrock:summaryTime": "1970-01-01T00:00:00.000+0000",
+						"crestBedrock:prompt": "Summarize this:",
+						"cm:versionType": "MAJOR",
+						"cm:versionLabel": "1.0",
+						"crestBedrock:fm": "amazon.titan-text-lite-v1",
+						"crestBedrock:responseLength": 250
+					}
+				}
+			},
+			{
+				"entry": {
+					"isFile": true,
+					"createdByUser": {
+						"id": "admin",
+						"displayName": "Administrator"
+					},
+					"modifiedAt": "2023-11-15T17:06:06.027+0000",
+					"nodeType": "cm:content",
+					"content": {
+						"mimeType": "text/plain",
+						"mimeTypeName": "Plain Text",
+						"sizeInBytes": 1629,
+						"encoding": "ISO-8859-1"
+					},
+					"parentId": "db79a30f-2bef-4542-9f34-a3b6cfe69435",
+					"createdAt": "2023-11-15T17:06:05.753+0000",
+					"isFolder": false,
+					"search": {
+						"score": 2.877724
+					},
+					"modifiedByUser": {
+						"id": "admin",
+						"displayName": "Administrator"
+					},
+					"name": "Equipment maintenance manuals.txt",
+					"location": "nodes",
+					"id": "44906a78-81a0-46c2-b3e9-31c8e52966f4",
+					"properties": {
+						"crestBedrock:generateSummary": false,
+						"crestBedrock:summaryTime": "1970-01-01T00:00:00.000+0000",
+						"crestBedrock:prompt": "Summarize this:",
+						"cm:versionType": "MAJOR",
+						"cm:versionLabel": "1.0",
+						"crestBedrock:fm": "amazon.titan-text-lite-v1",
+						"crestBedrock:responseLength": 250
+					}
+				}
+			},
+			{
+				"entry": {
+					"isFile": true,
+					"createdByUser": {
+						"id": "admin",
+						"displayName": "Administrator"
+					},
+					"modifiedAt": "2023-11-15T17:06:25.513+0000",
+					"nodeType": "cm:content",
+					"content": {
+						"mimeType": "text/plain",
+						"mimeTypeName": "Plain Text",
+						"sizeInBytes": 3142,
+						"encoding": "ISO-8859-1"
+					},
+					"parentId": "6c304b7e-22c4-49db-9b0e-12c7b91e45b9",
+					"createdAt": "2023-11-15T17:06:24.672+0000",
+					"isFolder": false,
+					"search": {
+						"score": 2.877724
+					},
+					"modifiedByUser": {
+						"id": "admin",
+						"displayName": "Administrator"
+					},
+					"name": "Quality control documentation.txt",
+					"location": "nodes",
+					"id": "a24c02f5-a210-42fd-b51a-d591f0ec1e63",
+					"properties": {
+						"crestBedrock:generateSummary": false,
+						"crestBedrock:summaryTime": "1970-01-01T00:00:00.000+0000",
+						"crestBedrock:prompt": "Summarize this:",
+						"cm:versionType": "MAJOR",
+						"cm:versionLabel": "1.0",
+						"crestBedrock:fm": "amazon.titan-text-lite-v1",
+						"crestBedrock:responseLength": 250
+					}
+				}
+			},
+			{
+				"entry": {
+					"isFile": true,
+					"createdByUser": {
+						"id": "admin",
+						"displayName": "Administrator"
+					},
+					"modifiedAt": "2023-11-15T17:06:07.201+0000",
+					"nodeType": "cm:content",
+					"content": {
+						"mimeType": "text/plain",
+						"mimeTypeName": "Plain Text",
+						"sizeInBytes": 2866,
+						"encoding": "ISO-8859-1"
+					},
+					"parentId": "db79a30f-2bef-4542-9f34-a3b6cfe69435",
+					"createdAt": "2023-11-15T17:06:06.757+0000",
+					"isFolder": false,
+					"search": {
+						"score": 2.877724
+					},
+					"modifiedByUser": {
+						"id": "admin",
+						"displayName": "Administrator"
+					},
+					"name": "Manufacturing instructions.txt",
+					"location": "nodes",
+					"id": "46957ef3-dcdc-4ebf-8f8f-7b272c4be73b",
+					"properties": {
+						"crestBedrock:generateSummary": false,
+						"crestBedrock:summaryTime": "1970-01-01T00:00:00.000+0000",
+						"crestBedrock:prompt": "Summarize this:",
+						"cm:versionType": "MAJOR",
+						"cm:versionLabel": "1.0",
+						"crestBedrock:fm": "amazon.titan-text-lite-v1",
+						"crestBedrock:responseLength": 250
+					}
+				}
+			},
+			{
+				"entry": {
+					"isFile": true,
+					"createdByUser": {
+						"id": "admin",
+						"displayName": "Administrator"
+					},
+					"modifiedAt": "2023-11-15T17:06:31.796+0000",
+					"nodeType": "cm:content",
+					"content": {
+						"mimeType": "text/plain",
+						"mimeTypeName": "Plain Text",
+						"sizeInBytes": 972,
+						"encoding": "ISO-8859-1"
+					},
+					"parentId": "f432f929-d72d-4890-ad18-644bed827180",
+					"createdAt": "2023-11-15T17:06:31.487+0000",
+					"isFolder": false,
+					"search": {
+						"score": 2.877724
+					},
+					"modifiedByUser": {
+						"id": "admin",
+						"displayName": "Administrator"
+					},
+					"name": "Test plans.txt",
+					"location": "nodes",
+					"id": "b1f3c06d-b8f6-4e6c-a5ae-5046070dfbd3",
+					"properties": {
+						"crestBedrock:generateSummary": false,
+						"crestBedrock:summaryTime": "1970-01-01T00:00:00.000+0000",
+						"crestBedrock:prompt": "Summarize this:",
+						"cm:versionType": "MAJOR",
+						"cm:versionLabel": "1.0",
+						"crestBedrock:fm": "amazon.titan-text-lite-v1",
+						"crestBedrock:responseLength": 250
+					}
+				}
+			},
+			{
+				"entry": {
+					"isFile": true,
+					"createdByUser": {
+						"id": "admin",
+						"displayName": "Administrator"
+					},
+					"modifiedAt": "2023-11-15T16:55:13.118+0000",
+					"nodeType": "cm:content",
+					"content": {
+						"mimeType": "text/plain",
+						"mimeTypeName": "Plain Text",
+						"sizeInBytes": 3617,
+						"encoding": "ISO-8859-1"
+					},
+					"parentId": "50ec53e1-3b9e-4783-896b-b8e35d6c59b7",
+					"createdAt": "2023-11-15T16:55:12.812+0000",
+					"isFolder": false,
+					"search": {
+						"score": 2.877724
+					},
+					"modifiedByUser": {
+						"id": "admin",
+						"displayName": "Administrator"
+					},
+					"name": "Patent applications.txt",
+					"location": "nodes",
+					"id": "ef7110a5-5945-4c43-81a3-2763012f1c92",
+					"properties": {
+						"crestBedrock:generateSummary": false,
+						"crestBedrock:summaryTime": "1970-01-01T00:00:00.000+0000",
+						"crestBedrock:prompt": "Summarize this:",
+						"cm:versionType": "MAJOR",
+						"cm:versionLabel": "1.0",
+						"crestBedrock:fm": "amazon.titan-text-lite-v1",
+						"crestBedrock:responseLength": 250,
+						"cm:lastThumbnailModification": [
+							"doclib:1700068957631"
+						]
+					}
+				}
+			}
+		]
+	}
+}
