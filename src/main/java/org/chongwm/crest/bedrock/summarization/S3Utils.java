@@ -20,20 +20,13 @@ import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequ
 
 public class S3Utils
 {
-
-	S3Client s3Client;
-	S3Presigner s3Presigner;
 	String bucketName;
 	String keyPath;
 	
 	public S3Utils(String s3Uri)
 	{
-		s3Client = S3Client.create();
-		s3Presigner = S3Presigner.create();
-		
 		this.bucketName = s3Uri.substring(5, s3Uri.indexOf("/", 5));		
-		this.keyPath = s3Uri.substring(s3Uri.indexOf(bucketName)+bucketName.length()+1, s3Uri.length());
-		
+		this.keyPath = s3Uri.substring(s3Uri.indexOf(bucketName)+bucketName.length()+1, s3Uri.length());	
 	}
 	
 	
@@ -68,7 +61,7 @@ public class S3Utils
 		
 	}
 	
-	protected void deleteFileFromS3(String fileName)
+	protected void deleteFileFromS3(S3Client s3Client, String fileName)
 	{
 		// Delete file to S3
 		String s3KeyName = this.keyPath+fileName;
@@ -76,7 +69,7 @@ public class S3Utils
 		s3Client.deleteObject(delS3File);
 	}
 
-	protected URL putInputStreamIntoS3(String fileName, InputStream contentStream) throws S3Exception, AwsServiceException, SdkClientException, IOException
+	protected URL putInputStreamIntoS3(S3Client s3Client, S3Presigner s3Presigner, String fileName, InputStream contentStream) throws S3Exception, AwsServiceException, SdkClientException, IOException
 	{
 		// Upload file to S3
 		String s3KeyName = this.keyPath+fileName;
