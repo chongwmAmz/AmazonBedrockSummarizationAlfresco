@@ -22,6 +22,8 @@ import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.HttpResponseException;
+import org.apache.http.client.config.CookieSpecs;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
@@ -47,6 +49,8 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
 import software.amazon.awssdk.services.bedrockruntime.model.InvokeModelRequest;
 import software.amazon.awssdk.services.bedrockruntime.model.InvokeModelResponse;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 public class AlfrescoReSTAPIAuthentication
 {
@@ -60,15 +64,16 @@ public class AlfrescoReSTAPIAuthentication
 	protected HttpPost searchHttpPost = null;
 	protected HttpPut nodeUpdateHttpPut = null;
 	protected S3Utils s3Utils;
-	protected BedrockRuntimeClient bedrockClient;
 	protected boolean httpProtocol;
 	protected SimpleDateFormat alfrescoDateFormat;
+	protected static S3Presigner s3Presigner = S3Presigner.create();
+	protected static S3Client s3Client = S3Client.create();
+	protected static BedrockRuntimeClient bedrockClient = BedrockRuntimeClient.create();
 
 	public AlfrescoReSTAPIAuthentication(String url, boolean https, String userId, String password, String s3BucketNamePath) throws KeyManagementException, NoSuchAlgorithmException, KeyStoreException, IOException
 	{
 		//s3://kendra-alf/BedrockTempFolder/
 		this.s3Utils = new S3Utils(s3BucketNamePath);
-		this.bedrockClient = BedrockRuntimeClient.create();
 		this.httpProtocol = https;
 		initClass(url, userId, password);
 	}
@@ -97,7 +102,8 @@ public class AlfrescoReSTAPIAuthentication
 		SSLContext sslContext = new SSLContextBuilder().loadTrustMaterial(null, (chain, authType) -> true).build(); // SSL context that trusts all certificates
 
 		// Use the above SSL context to create a HTTP client that accepts self-signed certificates.
-		this.httpClient = HttpClients.custom().setSSLContext(sslContext).setSSLHostnameVerifier((hostname, session) -> true).build();
+		//this.httpClient = HttpClients.custom().setSSLContext(sslContext).setSSLHostnameVerifier((hostname, session) -> true).build();
+		this.httpClient=HttpClients.custom().setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build()).setSSLContext(sslContext).setSSLHostnameVerifier((hostname, session) -> true).build();
 
 		// try (CloseableHttpClient httpClient = HttpClients.custom().setSSLContext(sslContext).setSSLHostnameVerifier((hostname, session) -> true).build())
 		{
@@ -186,7 +192,8 @@ public class AlfrescoReSTAPIAuthentication
 		HttpEntity entity = response.getEntity();
 		// Get the response body as a string
 		InputStream contentStream = entity.getContent();
-		URL retUrl = s3Utils.putInputStreamIntoS3(nodeId+"|"+nodeName, contentStream);
+		//URL retUrl = s3Utils.putInputStreamIntoS3(nodeId+"|"+nodeName, contentStream);
+		URL retUrl = s3Utils.putInputStreamIntoS3(this.s3Client, this.s3Presigner, nodeId + "|" + nodeName, contentStream);
 		response.close();
 		return retUrl;
 	}
@@ -238,7 +245,7 @@ public class AlfrescoReSTAPIAuthentication
 						// stage content onto S3 and send to Bedrock using S3 presignedURL
 						URL presignedDoc = putAlfrescoContentOnS3(entry.getId(), entry.getName());
 						JSONObject bedrockReply = BedrockInvokeClaude(nodeProps.getCrestBedrock_prompt(), nodeProps.getCrestBedrock_responseLength(), nodeProps.getCrestBedrock_temperature(), presignedDoc);
-						s3Utils.deleteFileFromS3(entry.getId()+"|"+entry.getName());
+						s3Utils.deleteFileFromS3(this.s3Client, entry.getId() + "|" + entry.getName());
 						aiResponse = bedrockReply.get("completion").toString();
 						
 					} else
