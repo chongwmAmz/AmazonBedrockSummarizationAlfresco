@@ -13,7 +13,7 @@ Resources:
     Properties:
       CodeUri: .
       Description: ''
-      MemorySize: 512
+      MemorySize: 256
       Timeout: 855
       Handler: >-
         org.chongwm.crest.bedrock.summarization.SummarizeAlfrescoWithBedrock::handleRequest
@@ -32,15 +32,23 @@ Resources:
             Schedule: cron(15 * ? * MON-FRI *)
       Environment:
         Variables:
-          alfrescoHost: acshost.fakedns.fake
-          alfrescoHostProtocol: https
-          alfrescoPass: xxxxxx
-          alfrescoSA: xxxxx
+          alfrescoPass: xxxxx
+          awsSecretsManagerSecretArn: >-
+            arn:aws:secretsmanager:us-east-1:xxxxxxxxx:secret:xxxxxxxxxxx
+          PARAMETERS_SECRETS_EXTENSION_HTTP_PORT: '2773'
+          s3Uri: s3://xxxxxxxxxxxx/BedrockTempFolder/
           queryJson: >-
             {"query":{"language":"afts","query":"TYPE:'cm:content' AND
             ASPECT:'crestBedrock:GenAI' AND crestBedrock:generateSummary:'true'
             AND name:*"},"include":["properties"]}
-          s3Uri: s3://xxxxxxxxxxxx/BedrockTempFolder/
+          alfrescoHostProtocol: https
+          PARAMETERS_SECRETS_EXTENSION_CACHE_ENABLED: 'true'
+          PARAMETERS_SECRETS_EXTENSION_LOG_LEVEL: WARN
+          alfrescoHost: acshost.fakedns.fake
+          alfrescoSA: xxxxx
+      Layers:
+        - >-
+          arn:aws:lambda:us-east-1:177933569100:layer:AWS-Parameters-and-Secrets-Lambda-Extension:11
       RuntimeManagementConfig:
         UpdateRuntimeOn: Auto
       SnapStart:
@@ -55,6 +63,7 @@ Resources:
             - Sid: VisualEditor0
               Effect: Allow
               Action:
+                - s3:GetObjectVersionTorrent
                 - s3:GetObject
                 - s3:GetObjectTorrent
                 - s3:GetBucketLocation
@@ -64,7 +73,7 @@ Resources:
               Resource:
                 - arn:aws:s3:::fealfos
                 - arn:aws:s3:::*/*
-                - arn:aws:logs:us-east-1:xxxxxxxxxxxx:*
+                - arn:aws:logs:us-east-1:817632472177:*
             - Sid: VisualEditor1
               Effect: Allow
               Action:
