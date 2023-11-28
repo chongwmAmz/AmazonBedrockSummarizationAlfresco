@@ -4,7 +4,7 @@
   <groupId>org.chongwm.crest.bedrock</groupId>
   <artifactId>summarization</artifactId>
   <name>Summarization</name>
-  <version>0.0.1-SNAPSHOT</version>
+  <version>0.0.8-SNAPSHOT</version>
   <build>
     <plugins>
       <plugin>

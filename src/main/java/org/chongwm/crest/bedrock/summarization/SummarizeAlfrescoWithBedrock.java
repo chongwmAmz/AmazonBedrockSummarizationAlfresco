@@ -1,9 +1,10 @@
 package org.chongwm.crest.bedrock.summarization;
 
-import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -34,6 +35,9 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.util.EntityUtils;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.chongwm.hyland.alfresco.search.pojo.json2kt.Content;
 import org.chongwm.hyland.alfresco.search.pojo.json2kt.Entries;
 import org.chongwm.hyland.alfresco.search.pojo.json2kt.Entry;
@@ -69,9 +73,9 @@ public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, 
 	protected static String awsSessionToken = System.getenv("AWS_SESSION_TOKEN");
 	protected static String awsSecretsExtensionHTTPPort = System.getenv("PARAMETERS_SECRETS_EXTENSION_HTTP_PORT");
 	protected static String url = System.getenv("alfrescoHost");
-	protected static String userId= System.getenv("alfrescoSA"); //ignored if Lambda environment variable awsSecretsManagerSecretArn is populated
-	protected static String password=System.getenv("alfrescoPass"); //ignored if Lambda environment variable awsSecretsManagerSecretArn is populated
-	protected static Arn awsSecretsManagerSecretArn = Arn.fromString(System.getenv("awsSecretsManagerSecretArn"));
+	protected static String userId = System.getenv("alfrescoSA"); // ignored if Lambda environment variable awsSecretsManagerSecretArn is populated
+	protected static String password = System.getenv("alfrescoPass"); // ignored if Lambda environment variable awsSecretsManagerSecretArn is populated
+	protected static Arn awsSecretsManagerSecretArn = (System.getenv("awsSecretsManagerSecretArn") == null) ? null : Arn.fromString(System.getenv("awsSecretsManagerSecretArn"));
 	protected static String s3BucketNamePath = System.getenv("s3Uri");
 	protected static String queryJson = System.getenv("queryJson");
 	protected static boolean httpProtocol = ("https".compareToIgnoreCase(System.getenv("alfrescoHostProtocol")) == 0) ? true : false;
@@ -79,6 +83,8 @@ public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, 
 	protected static S3Presigner s3Presigner = S3Presigner.create();
 	protected static BedrockRuntimeClient bedrockClient = BedrockRuntimeClient.create();
 	protected static SimpleDateFormat alfrescoDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");;
+	protected static int ExtractedTextThreshold = Integer.parseInt(System.getenv("ExtractedTextThreshold"));
+	protected static String EphemeralPathForRetrievedAlfrescoContent = "/tmp/output.bin";
 	private String ticket;
 	protected String encodedTicket;
 	protected CloseableHttpClient httpClient = null;
@@ -86,6 +92,7 @@ public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, 
 	protected HttpPut nodeUpdateHttpPut = null;
 	protected S3Utils s3Utils;
 	private LambdaLogger logger;
+	private boolean localDebug = false;
 
 	/****************************
 	 * Constructor
@@ -121,21 +128,21 @@ public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, 
 		{
 			getSecretValueFromLambdaLayer(this.awsSecretsManagerSecretArn.toString()); // this function populates userId and password
 		}
-		//else this.userId and this.password would be populated statically when the this class is created  before lambda handler is called.
-			
+		// else this.userId and this.password would be populated statically when the this class is created before lambda handler is called.
+
 		this.ticket = this.getAlfrescoTicket();
 		this.encodedTicket = Base64.getEncoder().encodeToString(this.ticket.getBytes());
 	}
 
 	public static String getSecretValueFromLambdaLayer(String secretToGet)
 	{
-		//		System.out.println("Token length is " + System.getenv("AWS_SESSION_TOKEN").length() + " Port is " + System.getenv("PARAMETERS_SECRETS_EXTENSION_HTTP_PORT"));
+		// System.out.println("Token length is " + System.getenv("AWS_SESSION_TOKEN").length() + " Port is " + System.getenv("PARAMETERS_SECRETS_EXTENSION_HTTP_PORT"));
 		HttpClient httpClient = HttpClients.createDefault();
 
 		// Create an HTTP GET request with the specified endpoint and request header
 		HttpGet httpGet = new HttpGet("http://localhost:" + awsSecretsExtensionHTTPPort + "/secretsmanager/get?secretId=" + secretToGet);
 		httpGet.setHeader("X-Aws-Parameters-Secrets-Token", awsSessionToken);
-		//System.out.println("Endpoint is " + httpGet.toString()+" X-Aws-Parameters-Secrets-Token is " + awsSessionToken);
+		// System.out.println("Endpoint is " + httpGet.toString()+" X-Aws-Parameters-Secrets-Token is " + awsSessionToken);
 
 		// Send the HTTP GET request
 		HttpResponse response = null;
@@ -146,9 +153,9 @@ public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, 
 			String responseBody = EntityUtils.toString(response.getEntity());
 			if (responseBody.startsWith("{"))
 			{
-				//System.out.println("JSON response Body: " + responseBody);
+				// System.out.println("JSON response Body: " + responseBody);
 				Gson gson = new Gson();
-		        JsonObject secretStringJson = gson.fromJson(gson.fromJson(responseBody, JsonObject.class).get("SecretString").getAsString(), JsonObject.class);
+				JsonObject secretStringJson = gson.fromJson(gson.fromJson(responseBody, JsonObject.class).get("SecretString").getAsString(), JsonObject.class);
 
 				for (String key : secretStringJson.keySet())
 				{
@@ -168,21 +175,30 @@ public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, 
 		return password;
 	}
 
+	protected void logOrPrint(String str)
+	{
+		if (localDebug)
+			System.out.println(str);
+		else
+			this.logger.log(str);
+	}
+
 	public Integer handleRequest(Map<String, Object> event, Context context)
 	{
-		this.logger = context.getLogger();
-		String logStr = "Lambda function triggered with alfrescoHostProtocol=" + httpProtocol + " alfrescoHost=" + url+ " s3Uri=" + s3BucketNamePath + " queryJson=" + queryJson;
+		if (!localDebug)
+			this.logger = context.getLogger();
+		String logStr = "Lambda function triggered with alfrescoHostProtocol=" + httpProtocol + " alfrescoHost=" + url + " s3Uri=" + s3BucketNamePath + " queryJson=" + queryJson;
 		if (this.awsSecretsManagerSecretArn == null)
 			logStr = logStr + " alfrescoSA=" + userId;
 		else
 			logStr = logStr + " awsSecretsArn=" + this.awsSecretsManagerSecretArn.toString();
 
-		this.logger.log(logStr);
+		logOrPrint(logStr);
 		int summarizationsDone = 0;
 		try
 		{
 			getAwsSecretAndAlfrescoTicket();
-			this.logger.log("Starting Alfresco query with Alfresco userId "+this.userId);
+			logOrPrint("Starting Alfresco query with Alfresco userId " + this.userId);
 			searchAlfresco(queryJson);
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | IOException | InterruptedException e)
 		{
@@ -205,24 +221,21 @@ public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, 
 		SSLContext sslContext = new SSLContextBuilder().loadTrustMaterial(null, (chain, authType) -> true).build(); // SSL context that trusts all certificates
 
 		// Use the above SSL context to create a HTTP client that accepts self-signed certificates.
-		//this.httpClient = HttpClients.custom().setSSLContext(sslContext).setSSLHostnameVerifier((hostname, session) -> true).build();
-		this.httpClient=HttpClients.custom().setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build()).setSSLContext(sslContext).setSSLHostnameVerifier((hostname, session) -> true).build();
+		// this.httpClient = HttpClients.custom().setSSLContext(sslContext).setSSLHostnameVerifier((hostname, session) -> true).build();
+		this.httpClient = HttpClients.custom().setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build()).setSSLContext(sslContext).setSSLHostnameVerifier((hostname, session) -> true).build();
 
-		// try (CloseableHttpClient httpClient = HttpClients.custom().setSSLContext(sslContext).setSSLHostnameVerifier((hostname, session) -> true).build())
-		{
-			String httpTicketUrl = "://" + this.url + "/alfresco/api/-default-/public/authentication/versions/1/tickets";
-			httpTicketUrl = this.httpProtocol ? "https" + httpTicketUrl : "http" + httpTicketUrl;
-			HttpPost request = new HttpPost(httpTicketUrl);
-			String json = "{\"userId\":\"" + this.userId + "\",\"password\":\"" + this.password + "\"}";
-			StringEntity entity = new StringEntity(json, StandardCharsets.UTF_8);
-			entity.setContentType("application/json");
-			request.setEntity(entity);
-			CloseableHttpResponse httpResponse = this.httpClient.execute(request);
-			HttpEntity httpEntity = httpResponse.getEntity();
-			JSONObject jsonResponse = new JSONObject(EntityUtils.toString(httpEntity));
-			idVal = jsonResponse.getJSONObject("entry").getString("id");
-			httpResponse.close();
-		}
+		String httpTicketUrl = "://" + this.url + "/alfresco/api/-default-/public/authentication/versions/1/tickets";
+		httpTicketUrl = this.httpProtocol ? "https" + httpTicketUrl : "http" + httpTicketUrl;
+		HttpPost request = new HttpPost(httpTicketUrl);
+		String json = "{\"userId\":\"" + this.userId + "\",\"password\":\"" + this.password + "\"}";
+		StringEntity entity = new StringEntity(json, StandardCharsets.UTF_8);
+		entity.setContentType("application/json");
+		request.setEntity(entity);
+		CloseableHttpResponse httpResponse = this.httpClient.execute(request);
+		HttpEntity httpEntity = httpResponse.getEntity();
+		JSONObject jsonResponse = new JSONObject(EntityUtils.toString(httpEntity));
+		idVal = jsonResponse.getJSONObject("entry").getString("id");
+		httpResponse.close();
 		return idVal;
 	}
 
@@ -244,23 +257,48 @@ public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, 
 	 * 
 	 * @param nodeId
 	 *            Alfresco provided Id of node to get content of.
+	 * @param mimeType
+	 *            PDF extraction will be attempted for Content.MIME_PDFDoc type.
 	 * @return String representation of content.
 	 * @throws ClientProtocolException
 	 * @throws IOException
 	 */
-	protected String getAlfrescoContent(String nodeId) throws ClientProtocolException, IOException
+	protected String getAlfrescoContent(String nodeId, String mimeType) throws ClientProtocolException, IOException
 	{
+		String content = null;
 		// Send the request and receive the response
 		CloseableHttpResponse response = getAlfrescoHttpGetResponseNodeContent(nodeId);
-		BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
-		StringBuilder builder = new StringBuilder();
-		String line;
-		while ((line = reader.readLine()) != null)
-		{
-			builder.append(line);
-		}
+		FileOutputStream fileOutputStream = new FileOutputStream(EphemeralPathForRetrievedAlfrescoContent);
+		response.getEntity().writeTo(fileOutputStream);
+		fileOutputStream.close();
 		response.close();
-		return builder.toString();
+		File file = new File(EphemeralPathForRetrievedAlfrescoContent);
+
+		if (Content.MIME_PDFDoc.equalsIgnoreCase(mimeType))
+		{
+			content = getPDFText(file);
+		}
+		else
+		{
+			FileInputStream fis = new FileInputStream(file);
+			byte[] bytes = new byte[(int) file.length()];
+			fis.read(bytes);
+			fis.close();
+			content = new String(bytes);
+		}
+		file.delete();
+		return content;
+	}
+
+	protected String getPDFText(File file) throws IOException
+	{
+		long startTime = System.currentTimeMillis();;
+		PDDocument pdoc = Loader.loadPDF(file);
+		PDFTextStripper stripper = new PDFTextStripper();
+		String text = stripper.getText(pdoc);
+		pdoc.close();
+		logOrPrint("PDF extraction took " + (System.currentTimeMillis() - startTime) + "ms");
+		return text;
 	}
 
 	/**
@@ -316,7 +354,7 @@ public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, 
 			SearchResults sr = gson.fromJson(responseString, SearchResults.class);
 			List<Entries> entries = sr.getList().getEntries();
 			response.close();
-			this.logger.log("Alfresco query returned "+entries.size()+" nodes marked for summarization.");
+			logOrPrint("Alfresco query returned " + entries.size() + " nodes marked for summarization.");
 			for (int e = 0; e < entries.size(); e++)
 			{
 				Entry entry = entries.get(e).getEntry();
@@ -324,22 +362,28 @@ public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, 
 				if (nodeProps.getCrestBedrock_fm().startsWith("anthropic"))
 				{
 					String nodeMimeType = entry.getContent().getMimeType();
-					String aiResponse;
+					String aiResponse = null;
 					Date timeWhenBedrockInferred = new Date();
-					// System.out.println("Processing #"+e+" "+entry.getName()+":"+entry.getId());
-					this.logger.log("Processing #" + e + " " + entry.getName() + ":" + entry.getId());
+					logOrPrint("Processing #" + e + " " + entry.getName() + ":" + entry.getId());
 					this.httpClient.close();
 					this.ticket = getAlfrescoTicket(); // Since each HttpClient only provides 2 routes, a new one will have to be created.
-					if (nodeMimeType.equalsIgnoreCase(Content.MIME_TEXTDoc))
+					if (nodeMimeType.equalsIgnoreCase(Content.MIME_TEXTDoc) || nodeMimeType.equalsIgnoreCase(Content.MIME_PDFDoc))
 					{
 						// get content and send to Bedrock
-						JSONObject bedrockReply = BedrockInvokeClaude(nodeProps.getCrestBedrock_prompt(), nodeProps.getCrestBedrock_responseLength(), nodeProps.getCrestBedrock_temperature(), getAlfrescoContent(entry.getId()));
-						aiResponse = bedrockReply.get("completion").toString();
-
+						String alfrescoNodeContent = getAlfrescoContent(entry.getId(), nodeMimeType);
+						if (alfrescoNodeContent.length() < ExtractedTextThreshold)
+						{
+							JSONObject bedrockReply = BedrockInvokeClaude(nodeProps.getCrestBedrock_prompt(), nodeProps.getCrestBedrock_responseLength(), nodeProps.getCrestBedrock_temperature(), alfrescoNodeContent);
+							aiResponse = bedrockReply.get("completion").toString();
+						}
+						else
+						{
+							logOrPrint("Extracted text exceeds threshold of " + ExtractedTextThreshold + " chars. " + entry.getName() + " will instead be temporarily staged in S3.");
+						}
 					}
-					else
-						if (nodeMimeType.equalsIgnoreCase(Content.MIME_MSWordDoc) || nodeMimeType.equalsIgnoreCase(Content.MIME_MSWordXDoc) || nodeMimeType.equalsIgnoreCase(Content.MIME_PDFDoc) || nodeMimeType.equalsIgnoreCase(Content.MIME_RFTDoc)
-								|| nodeMimeType.equalsIgnoreCase(Content.MIME_TEXTDoc))
+
+					if (aiResponse == null)
+						if (nodeMimeType.equalsIgnoreCase(Content.MIME_MSWordDoc) || nodeMimeType.equalsIgnoreCase(Content.MIME_MSWordXDoc) || nodeMimeType.equalsIgnoreCase(Content.MIME_RFTDoc) || nodeMimeType.equalsIgnoreCase(Content.MIME_PDFDoc))
 						{
 							// stage content onto S3 and send to Bedrock using S3 presignedURL
 							URL presignedDoc = putAlfrescoContentOnS3(entry.getId(), entry.getName());
@@ -350,7 +394,7 @@ public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, 
 						}
 						else
 						{
-							// TODO mark in Alfresco entry that MIME is not compatible for summmarization
+							// TODO mark in Alfresco entry that MIME is not compatible for summarization
 							aiResponse = null;
 						}
 					// Claude usually titles its responses, let's remove the first line.
@@ -362,15 +406,12 @@ public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, 
 					nodeProps.setCrestBedrock_generateSummary(false);
 					nodeProps.setCrestBedrock_summary(aiResponse);
 					nodeProps.setCrestBedrock_summaryTime(timeWhenBedrockInferred);
-					// System.out.print("Updating "+entry.getId());
 					updateAlfrescoNode(nodeProps, entry.getId());
-					// System.out.println(". Completed. Summarization took " +((new Date()).getTime() - timeWhenBedrockInferred.getTime())/1000+" seconds.");
-					this.logger.log(entry.getId() + ". Completed. Summarization took " + ((new Date()).getTime() - timeWhenBedrockInferred.getTime()) / 1000 + " seconds.");
+					logOrPrint(entry.getId() + ". Completed. Summarization took " + ((new Date()).getTime() - timeWhenBedrockInferred.getTime()) / 1000 + " seconds.");
 					summarizationsDone++;
 				}
 				else
-					// System.out.println("Non Anthropic FMs currently not supported");
-					this.logger.log("Non Anthropic FMs currently not supported");
+					logOrPrint("Non Anthropic FMs currently not supported");
 			}
 
 		} catch (Exception e)
@@ -441,8 +482,7 @@ public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, 
 		String returnMsg = performPutRestApiCall(alfrescoNodeUpdateRestEndpoint, jsonBody);
 		if (!(returnMsg == null))
 		{
-			// System.out.println(returnMsg+" returned by Alfresco repository when attempting to update node "+nodeId);
-			this.logger.log(returnMsg + " returned by Alfresco repository when attempting to update node " + nodeId);
+			logOrPrint(returnMsg + " returned by Alfresco repository when attempting to update node " + nodeId);
 		}
 
 	}
@@ -469,10 +509,27 @@ public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, 
 	}
 
 	/*
-	 * public static void main(String[] args) throws Exception { if (System.getenv("AWS_REGION") == null) if (System.getProperty("aws.region") == null) System.setProperty("aws.region", Region.US_EAST_1.toString());
-	 * 
-	 * String alfrescoSearchQuery = System.getenv("alfrescoSearchQuery"); if (alfrescoSearchQuery==null) alfrescoSearchQuery = args[4];
-	 * 
-	 * AlfrescoReSTAPIAuthentication ara = new AlfrescoReSTAPIAuthentication(args[0], true, args[1], args[2], args[3]); ara.searchAlfresco(alfrescoSearchQuery); }
-	 */
+	public static void main(String[] args) throws Exception
+	{
+		 // 0 "acs.sgpeks.duckdns.org" 
+		 // 1 "admin" 
+		 // 2 "k!mHuat" 
+		 // 3 "s3://kendra-alf/BedrockTempFolder/" 4
+		 // "{\"query\":{\"language\":\"afts\",\"query\":\"TYPE:'cm:content' AND ASPECT:'crestBedrock:GenAI' AND crestBedrock:generateSummary:'true' AND name:*\"},\"include\":[\"properties\"]}"
+		long mainStart = System.currentTimeMillis();
+
+		if (System.getenv("AWS_REGION") == null)
+			if (System.getProperty("aws.region") == null)
+				System.setProperty("aws.region", Region.US_EAST_1.toString());
+
+		String alfrescoSearchQuery = System.getenv("alfrescoSearchQuery");
+		if (alfrescoSearchQuery == null)
+			alfrescoSearchQuery = args[4];
+
+		SummarizeAlfrescoWithBedrock sab = new SummarizeAlfrescoWithBedrock();
+		sab.localDebug = true;
+		sab.handleRequest(null, null);
+		System.out.println("Main run took " + (System.currentTimeMillis() - mainStart) / 1000 + " seconds.");
+	}
+   */
 }

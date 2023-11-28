@@ -6,7 +6,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.chongwm.crest.bedrock</groupId>
 	<artifactId>summarization</artifactId>
-	<version>0.0.4-SNAPSHOT</version>
+	<version>0.0.8-SNAPSHOT</version>
 	<name>Summarization</name>
 	
 	<properties>
@@ -53,6 +53,11 @@
 			<artifactId>json</artifactId>
 			<version>20231013</version>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.pdfbox</groupId>
+			<artifactId>pdfbox</artifactId>
+			<version>3.0.0</version>
+		</dependency>		
 	</dependencies>
 	<build>
 		<plugins>
