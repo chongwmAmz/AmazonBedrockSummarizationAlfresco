@@ -1,4 +1,4 @@
-package org.chongwm.crest.bedrock.summarization;
+package chongwm.demo.aws.community.examples;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,6 +13,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
@@ -29,6 +30,15 @@ public class S3Utils
 		this.keyPath = s3Uri.substring(s3Uri.indexOf(bucketName)+bucketName.length()+1, s3Uri.length());	
 	}
 	
+	public String getBucketName()
+	{
+		return bucketName;
+	}
+	
+	public String getKeyPath()
+	{
+		return keyPath;
+	}
 	
 	
 	protected void putFileIntoS3(S3Client s3Client, S3Presigner s3Presigner)
@@ -68,8 +78,23 @@ public class S3Utils
 		DeleteObjectRequest delS3File = DeleteObjectRequest.builder().bucket(this.bucketName).key(s3KeyName).build();
 		s3Client.deleteObject(delS3File);
 	}
+	
+	
+	public void putJsonIntoS3(S3Client s3Client, String key, org.json.JSONObject jsonObject, boolean lines)
+	{
+		String contentType = lines?"application/jsonl":"application/json"; // As listed as convention in https://jsonlines.org/
+        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                .bucket(bucketName)  
+                .key(key) 
+                .contentType(contentType)
+                .build();
+        PutObjectResponse put= s3Client.putObject(putObjectRequest, RequestBody.fromString(jsonObject.toString()));
+	}
+	
+	//application/jsonlines
+	
 
-	protected URL putInputStreamIntoS3(S3Client s3Client, S3Presigner s3Presigner, String fileName, InputStream contentStream) throws S3Exception, AwsServiceException, SdkClientException, IOException
+	public URL putInputStreamIntoS3(S3Client s3Client, S3Presigner s3Presigner, String fileName, InputStream contentStream) throws S3Exception, AwsServiceException, SdkClientException, IOException
 	{
 		// Upload file to S3
 		String s3KeyName = this.keyPath+fileName;

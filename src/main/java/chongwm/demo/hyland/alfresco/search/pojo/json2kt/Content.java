@@ -1,4 +1,4 @@
-package org.chongwm.hyland.alfresco.search.pojo.json2kt;
+package chongwm.demo.hyland.alfresco.search.pojo.json2kt;
 
 import com.google.gson.annotations.SerializedName;
 
@@ -60,7 +60,7 @@ public class Content
 	
 	
 	public final static String MIME_TEXTDoc ="text/plain";
-	public final static String MIME_MSWordXDoc ="vnd.openxmlformats-officedocument.wordprocessingml.document";
+	public final static String MIME_MSWordXDoc ="application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 	public final static String MIME_MSWordDoc ="application/msword";
 	public final static String MIME_RFTDoc ="application/rtf";
 	public final static String MIME_PDFDoc ="application/pdf";

@@ -1,4 +1,4 @@
-package org.chongwm.crest.bedrock.summarization;
+package chongwm.demo.amazon.aws.bedrock.summarization;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -12,10 +12,13 @@ import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
+import java.util.concurrent.CompletableFuture;
 
 import javax.net.ssl.SSLContext;
 
@@ -38,11 +41,6 @@ import org.apache.http.util.EntityUtils;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
-import org.chongwm.hyland.alfresco.search.pojo.json2kt.Content;
-import org.chongwm.hyland.alfresco.search.pojo.json2kt.Entries;
-import org.chongwm.hyland.alfresco.search.pojo.json2kt.Entry;
-import org.chongwm.hyland.alfresco.search.pojo.json2kt.Properties;
-import org.chongwm.hyland.alfresco.search.pojo.json2kt.SearchResults;
 import org.json.JSONObject;
 
 import com.amazonaws.services.lambda.runtime.Context;
@@ -52,11 +50,23 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 
+import chongwm.demo.aws.community.examples.S3Utils;
+import chongwm.demo.hyland.alfresco.search.pojo.json2kt.Content;
+import chongwm.demo.hyland.alfresco.search.pojo.json2kt.Entries;
+import chongwm.demo.hyland.alfresco.search.pojo.json2kt.Entry;
+import chongwm.demo.hyland.alfresco.search.pojo.json2kt.Properties;
+import chongwm.demo.hyland.alfresco.search.pojo.json2kt.SearchResults;
+import chongwm.demo.toolbox.String.Utils;
 import software.amazon.awssdk.arns.Arn;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
+import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeAsyncClient;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
 import software.amazon.awssdk.services.bedrockruntime.model.InvokeModelRequest;
 import software.amazon.awssdk.services.bedrockruntime.model.InvokeModelResponse;
+import software.amazon.awssdk.services.bedrockruntime.model.ValidationException;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
@@ -69,7 +79,6 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
  */
 public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, Object>, Integer>
 {
-
 	protected static String awsSessionToken = System.getenv("AWS_SESSION_TOKEN");
 	protected static String awsSecretsExtensionHTTPPort = System.getenv("PARAMETERS_SECRETS_EXTENSION_HTTP_PORT");
 	protected static String url = System.getenv("alfrescoHost");
@@ -77,13 +86,27 @@ public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, 
 	protected static String password = System.getenv("alfrescoPass"); // ignored if Lambda environment variable awsSecretsManagerSecretArn is populated
 	protected static Arn awsSecretsManagerSecretArn = (System.getenv("awsSecretsManagerSecretArn") == null) ? null : Arn.fromString(System.getenv("awsSecretsManagerSecretArn"));
 	protected static String s3BucketNamePath = System.getenv("s3Uri");
-	protected static String queryJson = System.getenv("queryJson");
+	protected static String queryJson = System.getenv("queryJson");  
 	protected static boolean httpProtocol = ("https".compareToIgnoreCase(System.getenv("alfrescoHostProtocol")) == 0) ? true : false;
+	protected static Random obfuscateNodeNameRandomizer = ("false".compareToIgnoreCase(System.getenv("obfuscateNodeNameInS3"))==0) ? null:new Random(System.currentTimeMillis());
+	protected static int ExtractedTextThreshold = Integer.parseInt(System.getenv("ExtractedTextThreshold"));
 	protected static S3Client s3Client = S3Client.create();
 	protected static S3Presigner s3Presigner = S3Presigner.create();
-	protected static BedrockRuntimeClient bedrockClient = BedrockRuntimeClient.create();
-	protected static SimpleDateFormat alfrescoDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");;
-	protected static int ExtractedTextThreshold = Integer.parseInt(System.getenv("ExtractedTextThreshold"));
+	//protected static BedrockRuntimeClient bedrockClient = BedrockRuntimeClient.create();
+	protected static BedrockRuntimeClient bedrockClient = BedrockRuntimeClient.builder()
+			                                              //.region(Region.US_WEST_2)
+                                                          .region(Region.US_EAST_1)
+			                                              .credentialsProvider(DefaultCredentialsProvider.create())
+			                                              .overrideConfiguration(b -> b.apiCallTimeout(Duration.ofSeconds(900)) //https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/best-practices.html
+			                                              .apiCallAttemptTimeout(Duration.ofSeconds(300)))
+			                                              .build();
+	protected static BedrockRuntimeAsyncClient bedrockAsyncClient = BedrockRuntimeAsyncClient.builder()
+            .region(new DefaultAwsRegionProviderChain().getRegion())
+            .credentialsProvider(DefaultCredentialsProvider.create())
+            .overrideConfiguration(b -> b.apiCallTimeout(Duration.ofSeconds(900)) //https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/best-practices.html
+            .apiCallAttemptTimeout(Duration.ofSeconds(300)))
+            .build(); 	
+	protected static SimpleDateFormat alfrescoDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
 	protected static String EphemeralPathForRetrievedAlfrescoContent = "/tmp/output.bin";
 	private String ticket;
 	protected String encodedTicket;
@@ -93,6 +116,15 @@ public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, 
 	protected S3Utils s3Utils;
 	private LambdaLogger logger;
 	private boolean localDebug = false;
+	public static int anthropicClaudeMaxTokensToSample = 180000; //https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-claude.html
+	private String truncatedHeader= null;
+	protected final static int BedrockBatchItemMaxLength = 1048576;  // Observed value. Reevaluate whenever
+	protected final static int BedrockBatchClaudePromptMaxLength = 600000 -300; // Observed value to account for timeout issue (https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-claude.html). 
+	                                                                            //Reevaluate whenever. Buffer (as -ve value) for the user provided prompt
+	protected static int ArbitarySynchronousBedrockInvocationLength = 250000;
+	protected static int claudeTopK = 250;
+	protected static float claudeTopP = (float) 0.5;
+	
 
 	/****************************
 	 * Constructor
@@ -180,7 +212,7 @@ public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, 
 		if (localDebug)
 			System.out.println(str);
 		else
-			this.logger.log(str);
+			this.logger.log(str+"\n");
 	}
 
 	public Integer handleRequest(Map<String, Object> event, Context context)
@@ -292,7 +324,7 @@ public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, 
 
 	protected String getPDFText(File file) throws IOException
 	{
-		long startTime = System.currentTimeMillis();;
+		long startTime = System.currentTimeMillis();
 		PDDocument pdoc = Loader.loadPDF(file);
 		PDFTextStripper stripper = new PDFTextStripper();
 		String text = stripper.getText(pdoc);
@@ -318,10 +350,11 @@ public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, 
 		HttpEntity entity = response.getEntity();
 		// Get the response body as a string
 		InputStream contentStream = entity.getContent();
-		URL retUrl = s3Utils.putInputStreamIntoS3(this.s3Client, this.s3Presigner, nodeId + "|" + nodeName, contentStream);
+		URL retUrl = s3Utils.putInputStreamIntoS3(this.s3Client, this.s3Presigner, nodeId + nodeName, contentStream);
 		response.close();
 		return retUrl;
 	}
+	
 
 	/**
 	 * Queries Alfresco for documents and invokes Amazon Bedrock to summarize each of them.
@@ -356,7 +389,7 @@ public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, 
 			response.close();
 			logOrPrint("Alfresco query returned " + entries.size() + " nodes marked for summarization.");
 			for (int e = 0; e < entries.size(); e++)
-			{
+			{//Process each Alfresco node retrieved from the search
 				Entry entry = entries.get(e).getEntry();
 				Properties nodeProps = entry.getProperties();
 				if (nodeProps.getCrestBedrock_fm().startsWith("anthropic"))
@@ -371,43 +404,43 @@ public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, 
 					{
 						// get content and send to Bedrock
 						String alfrescoNodeContent = getAlfrescoContent(entry.getId(), nodeMimeType);
-						if (alfrescoNodeContent.length() < ExtractedTextThreshold)
-						{
-							JSONObject bedrockReply = BedrockInvokeClaude(nodeProps.getCrestBedrock_prompt(), nodeProps.getCrestBedrock_responseLength(), nodeProps.getCrestBedrock_temperature(), alfrescoNodeContent);
-							aiResponse = bedrockReply.get("completion").toString();
-						}
-						else
-						{
-							logOrPrint("Extracted text exceeds threshold of " + ExtractedTextThreshold + " chars. " + entry.getName() + " will instead be temporarily staged in S3.");
-						}
+						//if (alfrescoNodeContent.length() < ExtractedTextThreshold)
+						//{
+						JSONObject bedrockReply = BedrockInvokeClaude(nodeProps.getCrestBedrock_prompt(), nodeProps.getCrestBedrock_responseLength(), 
+								                                      nodeProps.getCrestBedrock_temperature(), alfrescoNodeContent, entry.getId());
+						aiResponse = bedrockReply.get("completion").toString();
+						if (aiResponse.startsWith("batch|"))
+							logOrPrint(entry.getId()+" is too long for direct invocation. It has been batched as "+bedrockReply.get("s3Path").toString());
 					}
 
-					if (aiResponse == null)
-						if (nodeMimeType.equalsIgnoreCase(Content.MIME_MSWordDoc) || nodeMimeType.equalsIgnoreCase(Content.MIME_MSWordXDoc) || nodeMimeType.equalsIgnoreCase(Content.MIME_RFTDoc) || nodeMimeType.equalsIgnoreCase(Content.MIME_PDFDoc))
-						{
-							// stage content onto S3 and send to Bedrock using S3 presignedURL
-							URL presignedDoc = putAlfrescoContentOnS3(entry.getId(), entry.getName());
-							JSONObject bedrockReply = BedrockInvokeClaude(nodeProps.getCrestBedrock_prompt(), nodeProps.getCrestBedrock_responseLength(), nodeProps.getCrestBedrock_temperature(), presignedDoc);
-							s3Utils.deleteFileFromS3(this.s3Client, entry.getId() + "|" + entry.getName());
-							aiResponse = bedrockReply.get("completion").toString();
-
-						}
-						else
-						{
-							// TODO mark in Alfresco entry that MIME is not compatible for summarization
-							aiResponse = null;
-						}
-					// Claude usually titles its responses, let's remove the first line.
+					String log=null;
 					if (aiResponse == null)
 						aiResponse = "";
 					else
-						aiResponse = removeFirstLine(aiResponse, true);
-
+					{
+						log = entry.getId() + ". ";
+						if (aiResponse.startsWith("batch|"))
+						{
+							//write it into node's metadata as a marker to indicate an async batch job is running
+							log = log+ "Batched. Staging to S3";
+						}
+						else
+						{ // Claude usually titles its responses, let's remove the first line.
+							aiResponse = removeFirstLine(aiResponse, true);
+							if (this.truncatedHeader!=null)
+							{
+								aiResponse=this.truncatedHeader.concat(aiResponse);
+								this.truncatedHeader = null;
+							}
+							log = log + "Completed. Summarization";
+						}
+					}
 					nodeProps.setCrestBedrock_generateSummary(false);
 					nodeProps.setCrestBedrock_summary(aiResponse);
 					nodeProps.setCrestBedrock_summaryTime(timeWhenBedrockInferred);
 					updateAlfrescoNode(nodeProps, entry.getId());
-					logOrPrint(entry.getId() + ". Completed. Summarization took " + ((new Date()).getTime() - timeWhenBedrockInferred.getTime()) / 1000 + " seconds.");
+					
+					logOrPrint(log +" took " +((new Date()).getTime() - timeWhenBedrockInferred.getTime()) / 1000 + " seconds.");
 					summarizationsDone++;
 				}
 				else
@@ -433,7 +466,6 @@ public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, 
 
 	protected String performPutRestApiCall(String endpoint, JsonObject jsonObject) throws HttpResponseException, IOException, JsonSyntaxException
 	{
-
 		HttpPut httpPut = new HttpPut(endpoint);
 
 		httpPut.setHeader("Accept", "application/json");
@@ -486,21 +518,136 @@ public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, 
 		}
 
 	}
+	
+	protected JSONObject BedrockInvokeJurassic2(JSONObject jsonBody)
+	{
+		SdkBytes body = SdkBytes.fromUtf8String(jsonBody.toString());
+		InvokeModelRequest request = InvokeModelRequest.builder().modelId("anthropic.claude-v2:1").body(body).build();
+		InvokeModelResponse response =null;
+		while (response ==null)
+		{
+			try
+			{
+				response = this.bedrockClient.invokeModel(request);
+			}
+			catch (software.amazon.awssdk.services.bedrockruntime.model.ThrottlingException tE )
+			{	String logMsg = "Retrying in 10secs-"+ tE.getMessage();
+				logOrPrint(logMsg);
+				try
+				{
+					Thread.sleep(10000);
+				} catch (InterruptedException e)
+				{
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			catch (software.amazon.awssdk.core.exception.SdkClientException sE)
+			{
+				logOrPrint("Read Timeout. So skip");
+			}
+		}
+		JSONObject jsonObject = new JSONObject(response.body().asString(StandardCharsets.UTF_8));
+		return jsonObject;
+	}	
 
 	protected JSONObject BedrockInvokeClaude(JSONObject jsonBody)
 	{
 		SdkBytes body = SdkBytes.fromUtf8String(jsonBody.toString());
-		InvokeModelRequest request = InvokeModelRequest.builder().modelId("anthropic.claude-v2").body(body).build();
-		InvokeModelResponse response = this.bedrockClient.invokeModel(request);
+		InvokeModelRequest request = InvokeModelRequest.builder().modelId("anthropic.claude-v2:1").body(body).build();
+		InvokeModelResponse response =null;
+		while (response ==null)
+		{
+			try
+			{
+				response = this.bedrockClient.invokeModel(request);
+			}
+			catch (software.amazon.awssdk.services.bedrockruntime.model.ThrottlingException tE )
+			{	String logMsg = "Retrying in 10secs-"+ tE.getMessage();
+				logOrPrint(logMsg);
+				try
+				{
+					Thread.sleep(10000);
+				} catch (InterruptedException e)
+				{
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			catch (software.amazon.awssdk.core.exception.SdkClientException sE)
+			{
+				logOrPrint("Read Timeout. So skip");
+			}
+		}
 		JSONObject jsonObject = new JSONObject(response.body().asString(StandardCharsets.UTF_8));
 		return jsonObject;
 	}
 
-	protected JSONObject BedrockInvokeClaude(String prompt, int responseLength, float temperature, String textToInfer)
+	protected JSONObject AsyncBedrockInvokeClaude(JSONObject jsonBody)
 	{
-		JSONObject jsonBody = new JSONObject().put("prompt", "Human: " + prompt + " the following- " + textToInfer + " Assistant:").put("temperature", temperature).put("max_tokens_to_sample", responseLength);
-		return BedrockInvokeClaude(jsonBody);
+		
+		/*ClientOverrideConfiguration clientOverrideConfiguration = ClientOverrideConfiguration.builder()
+                .apiCallAttemptTimeout(Duration.ofSeconds(900))
+                .apiCallTimeout(Duration.ofSeconds(900))
+                .retryPolicy(RetryPolicy.builder().numRetries(0).build())
+                .build();
+		
+		BedrockRuntimeAsyncClient bac = BedrockRuntimeAsyncClient.builder().region(Region.US_EAST_1).overrideConfiguration(clientOverrideConfiguration).build(); */
+		SdkBytes body = SdkBytes.fromUtf8String(jsonBody.toString());
+		InvokeModelRequest request = InvokeModelRequest.builder().modelId("anthropic.claude-v2:1").body(body).build();
+		CompletableFuture<InvokeModelResponse> futureResponse = this.bedrockAsyncClient.invokeModel(request);
+		//CompletableFuture<InvokeModelResponse> futureResponse = this.bedrockAsyncClient.invokeModel(request);
+		JSONObject jsonObject = new JSONObject(futureResponse.join().body().asString(StandardCharsets.UTF_8));
+		return jsonObject;
 	}
+	
+	
+	protected JSONObject BedrockInvokeClaude(String prompt, int responseLength, float temperature, String textToInfer, String alfNodeId)
+	{
+		JSONObject jsonBody = null;
+		JSONObject jsonModelBody = null;
+
+		JSONObject claudeResponse = null;
+		textToInfer = textToInfer.trim();
+		String batchRecordId = null;
+
+		if (textToInfer.length() > ArbitarySynchronousBedrockInvocationLength)
+		{
+			batchRecordId = Utils.seededRandomString(obfuscateNodeNameRandomizer, 12);
+			if (textToInfer.length() > BedrockBatchClaudePromptMaxLength)
+			{
+				int pReduction = (int) ((float) ((textToInfer.length() - BedrockBatchClaudePromptMaxLength) / (float) textToInfer.length()) * 100);
+				this.truncatedHeader = ("*** The text used has been truncated by " + pReduction + "% to generate the following inference ***.\n\r");
+				logOrPrint("Text for inference truncted to " + textToInfer.length());
+				textToInfer = textToInfer.substring(0, BedrockBatchClaudePromptMaxLength);
+			}
+		}
+		//else there's no need to truncate
+			//textToInfer = textToInfer.substring(0, ArbitarySynchronousBedrockInvocationLength); // truncate so the synchronous Bedrock call will not timeout.
+
+		jsonModelBody = new JSONObject().put("prompt", "Human:" + textToInfer + "\\n" + prompt + "\\n\\nAssistant:")
+				                        .put("temperature", temperature).put("max_tokens_to_sample", responseLength)
+				                        .put("top_k", claudeTopK).put("top_p", claudeTopP);
+		try
+		{
+			if (batchRecordId == null)
+			{
+				claudeResponse = BedrockInvokeClaude(jsonModelBody);
+			}
+			else
+			{
+				jsonBody = new JSONObject().put("recordId", batchRecordId).put("modelInput", jsonModelBody); //package the into JSONL for batch processing https://docs.aws.amazon.com/bedrock/latest/userguide/batch-inference-data.html
+				String keyPath = s3Utils.getKeyPath() + "batch/input/" + batchRecordId + alfNodeId + ".jsonl";
+				s3Utils.putJsonIntoS3(s3Client, keyPath, jsonBody, true);
+				claudeResponse = new JSONObject().put("completion", "batch|" + batchRecordId+"|"+this.truncatedHeader).put("s3Path", s3Utils.getBucketName() + "/" + keyPath); //fake a completion section so that caller can get the batch placeholder Id.
+			}
+		} catch (ValidationException e)
+		{
+			logOrPrint(e.getMessage());
+		}
+		return claudeResponse;
+	}
+	
 
 	protected JSONObject BedrockInvokeClaude(String prompt, int responseLength, float temperature, URL contentLink)
 	{
@@ -508,14 +655,13 @@ public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, 
 		return BedrockInvokeClaude(jsonBody);
 	}
 
-	/*
 	public static void main(String[] args) throws Exception
 	{
-		 // 0 "acs.sgpeks.duckdns.org" 
-		 // 1 "admin" 
-		 // 2 "k!mHuat" 
-		 // 3 "s3://kendra-alf/BedrockTempFolder/" 4
-		 // "{\"query\":{\"language\":\"afts\",\"query\":\"TYPE:'cm:content' AND ASPECT:'crestBedrock:GenAI' AND crestBedrock:generateSummary:'true' AND name:*\"},\"include\":[\"properties\"]}"
+		// 0 "acs.sgpeks.duckdns.org"
+		// 1 "admin"
+		// 2 "k!mHuat"
+		// 3 "s3://kendra-alf/BedrockTempFolder/" 4
+		// "{\"query\":{\"language\":\"afts\",\"query\":\"TYPE:'cm:content' AND ASPECT:'crestBedrock:GenAI' AND crestBedrock:generateSummary:'true' AND name:*\"},\"include\":[\"properties\"]}"
 		long mainStart = System.currentTimeMillis();
 
 		if (System.getenv("AWS_REGION") == null)
@@ -531,5 +677,5 @@ public class SummarizeAlfrescoWithBedrock implements RequestHandler<Map<String, 
 		sab.handleRequest(null, null);
 		System.out.println("Main run took " + (System.currentTimeMillis() - mainStart) / 1000 + " seconds.");
 	}
-   */
+
 }
