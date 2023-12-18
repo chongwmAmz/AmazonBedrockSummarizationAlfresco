@@ -1,12 +1,12 @@
-# This AWS SAM template has been generated from your function's 
-# configuration. If your function has one or more triggers, note 
-# that the AWS resources associated with these triggers aren't fully 
-# specified in this template and include placeholder values.Open this template 
-# in AWS Application Composer or your favorite IDE and modify 
-# it to specify a serverless application with other AWS resources. 
+# This AWS SAM template has been generated from your function's configuration. If
+# your function has one or more triggers, note that the AWS resources associated
+# with these triggers aren't fully specified in this template and include
+# placeholder values. Open this template in AWS Application Composer or your
+# favorite IDE and modify it to specify a serverless application with other AWS
+# resources.
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: An AWS Serverless Specification template describing your function.
+Description: An AWS Serverless Application Model template describing your function.
 Resources:
   AlfrescoSummarization:
     Type: AWS::Serverless::Function
@@ -16,44 +16,35 @@ Resources:
       MemorySize: 256
       Timeout: 285
       Handler: >-
-        org.chongwm.crest.bedrock.summarization.SummarizeAlfrescoWithBedrock::handleRequest
+        chongwm.demo.amazon.aws.bedrock.summarization.SummarizeAlfrescoWithBedrock::handleRequest
       Runtime: java17
       Architectures:
         - x86_64
-      EventInvokeConfig:
-        MaximumEventAgeInSeconds: 21600
-        MaximumRetryAttempts: 2
       EphemeralStorage:
         Size: 512
-      Events:
-        Schedule1:
-          Type: Schedule
-          Properties:
-            Schedule: cron(15 * ? * MON-FRI *)
       Environment:
         Variables:
-          alfrescoPass: <notUsed>
           awsSecretsManagerSecretArn: >-
-            arn:aws:secretsmanager:us-east-1:xxxxxxxxx:secret:sgpeksAlfresco-JonCDD
+            arn:aws:secretsmanager:us-east-1:XXXXXXXXXXXXX:secret:YYYYYYYYYYYY
           PARAMETERS_SECRETS_EXTENSION_HTTP_PORT: '2773'
-          s3Uri: s3://kendra-alf/BedrockTempFolder/
+          s3Uri: s3://XXXXXXXXXXXXXXXX/BedrockYYYYYYYYYYYYY/
           queryJson: >-
             {"query":{"language":"afts","query":"TYPE:'cm:content' AND
             ASPECT:'crestBedrock:GenAI' AND crestBedrock:generateSummary:'true'
             AND name:*"},"include":["properties"]}
           alfrescoHostProtocol: https
+          obfuscateNodeNameInS3: 'true'
           PARAMETERS_SECRETS_EXTENSION_CACHE_ENABLED: 'true'
           PARAMETERS_SECRETS_EXTENSION_LOG_LEVEL: WARN
-          alfrescoHost: acs.sgpeks.duckdns.org
+          alfrescoHost: acs.xxxx.yyyy.zzz
           ExtractedTextThreshold: '4000'
-          alfrescoSA: <notUsed>
+          alfrescoSA: xxxxx
+      EventInvokeConfig:
+        MaximumEventAgeInSeconds: 21600
+        MaximumRetryAttempts: 2
       Layers:
         - >-
-          arn:aws:lambda:us-east-1:xxxxxxxxxxxx:layer:AWS-Parameters-and-Secrets-Lambda-Extension:11
-      RuntimeManagementConfig:
-        UpdateRuntimeOn: Auto
-      SnapStart:
-        ApplyOn: None
+          arn:aws:lambda:us-east-1:177933569100:layer:AWS-Parameters-and-Secrets-Lambda-Extension:11
       PackageType: Zip
       Policies:
         - Statement:
@@ -72,14 +63,21 @@ Resources:
                 - logs:CreateLogGroup
                 - s3:GetObjectVersion
               Resource:
-                - arn:aws:s3:::fealfos
-                - arn:aws:s3:::*/*
-                - arn:aws:logs:us-east-1:xxxxxxxx:*
+                - arn:aws:s3:::xxxxxxx
+                - arn:aws:logs:us-east-1:XXXXXXXX:*
             - Sid: VisualEditor1
               Effect: Allow
               Action:
                 - logs:CreateLogStream
                 - logs:PutLogEvents
               Resource: >-
-                arn:aws:logs:us-east-1:xxxxxxxxxx:log-group:/aws/lambda/welcomeLambda:*
+                arn:aws:logs:us-east-1:XXXXXXX:log-group:/aws/lambda/YYYYYYYY:*
+      SnapStart:
+        ApplyOn: None
+      Events:
+        Schedule1:
+          Type: Schedule
+          Properties:
+            Schedule: cron(15 * ? * MON-FRI *)
+      RuntimeManagementConfig: {}
 
